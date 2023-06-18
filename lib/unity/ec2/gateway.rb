@@ -1,10 +1,10 @@
 class Unity::EC2::Gateway < Unity::EC2::Base
-  
+
   def list
     list = []
 
-    # filter the collection to just nanobox instances
-    filter = [{'Name'  => 'tag:Nanobox', 'Value' => 'true'}]
+    # filter the collection to just microbox instances
+    filter = [{'Name'  => 'tag:Microbox', 'Value' => 'true'}]
 
     # query the api
     res = manager.DescribeInternetGateways('Filter' => filter)
@@ -31,18 +31,18 @@ class Unity::EC2::Gateway < Unity::EC2::Base
 
     list
   end
-  
+
   def show(name)
     list.each do |gateway|
       if gateway[:name] == name
         return gateway
       end
     end
-    
+
     # return nil if we can't find it
     nil
   end
-  
+
   def create(name)
     # short-circuit if this already exists
     existing = show(name)
@@ -50,60 +50,60 @@ class Unity::EC2::Gateway < Unity::EC2::Base
       logger.info "Internet Gateway '#{name}' already exists"
       return existing
     end
-    
+
     # create the gateway
     logger.info("Creating Internet Gateway '#{name}'")
     gateway = create_gateway(name)
-    
+
     # tag the gateway
     logger.info("Tagging Internet Gateway '#{name}'")
     tag_gateway(gateway['internetGatewayId'], name)
-    
+
     # process the gateway
     process(gateway)
   end
-  
+
   def attach(vpc, gateway)
     # short-circuit if this already exists
     if gateway[:attached_vpcs].include? vpc[:id]
       logger.info "Internet Gateway '#{gateway[:name]}' already attached to VPC '#{vpc[:name]}'"
       return true
     end
-    
-    
+
+
     # attach the gateway to the vpc
     logger.info "Attaching Internet Gateway '#{gateway[:name]}' to VPC '#{vpc[:name]}'"
     res = manager.AttachInternetGateway(
       'InternetGatewayId' => gateway[:id],
       'VpcId'             => vpc[:id]
     )
-    
+
     # find out if it was attached
     res["AttachInternetGatewayResponse"]["return"]
   end
-  
+
   protected
-  
+
   def create_gateway(name)
     # create an internet gateway
     res = manager.CreateInternetGateway()
-    
+
     # extract the response
     res["CreateInternetGatewayResponse"]["internetGateway"]
   end
-  
+
   def tag_gateway(id, name)
     # tag the vpc
     res = manager.CreateTags(
       'ResourceId'  => id,
       'Tag' => [
         {
-          'Key' => 'Nanobox',
+          'Key' => 'Microbox',
           'Value' => 'true'
         },
         {
           'Key' => 'Name',
-          'Value' => "Nanobox-Unity-#{name}"
+          'Value' => "Microbox-Unity-#{name}"
         },
         {
           'Key' => 'EnvName',
@@ -112,7 +112,7 @@ class Unity::EC2::Gateway < Unity::EC2::Base
       ]
     )
   end
-  
+
   def process(data)
     {
       id:             data["internetGatewayId"],
@@ -120,7 +120,7 @@ class Unity::EC2::Gateway < Unity::EC2::Base
       attached_vpcs:  extract_attached_vpc_ids(data['attachmentSet'])
     }
   end
-  
+
   def process_tag(tags, key)
     tags.each do |tag|
       if tag['key'] == key
@@ -129,10 +129,10 @@ class Unity::EC2::Gateway < Unity::EC2::Base
     end
     ''
   end
-  
+
   def extract_attached_vpc_ids(set)
     return [] if set.nil?
-    
+
     collection = begin
       if set['item'].is_a? Array
         set['item']
@@ -140,10 +140,10 @@ class Unity::EC2::Gateway < Unity::EC2::Base
         [set['item']]
       end
     end
-    
+
     collection.map do |attachment|
       attachment['vpcId']
     end
   end
-  
+
 end

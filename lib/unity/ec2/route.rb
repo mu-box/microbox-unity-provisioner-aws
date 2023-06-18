@@ -1,9 +1,9 @@
 class Unity::EC2::Route < Unity::EC2::Base
-  
+
   def add_vpc_to_gateway(vpc, gateway)
-    
+
     table = fetch_route_table(vpc[:id])
-    
+
     # add an internet accessible route
     logger.info "Adding internet accessable route for VPC '#{vpc[:name]}'"
     res = manager.CreateRoute(
@@ -11,14 +11,14 @@ class Unity::EC2::Route < Unity::EC2::Base
       'DestinationCidrBlock'  => '0.0.0.0/0',
       'GatewayId'             => gateway[:id]
     )
-    
+
     res["CreateRouteResponse"]["return"]
   end
-  
+
   protected
-  
+
   def fetch_route_table(vpc_id)
-    # filter the collection to just nanobox instances
+    # filter the collection to just microbox instances
     filter = [{'Name'  => 'vpc-id', 'Value' => vpc_id}]
 
     # query the api
@@ -41,5 +41,5 @@ class Unity::EC2::Route < Unity::EC2::Base
 
     collection.first
   end
-  
+
 end

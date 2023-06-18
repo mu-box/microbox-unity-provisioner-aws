@@ -1,22 +1,22 @@
 class Unity::EC2::SecurityGroup < Unity::EC2::Base
-  
+
   def list(vpc)
     list = []
-    
-    # filter the collection to just nanobox instances
+
+    # filter the collection to just microbox instances
     filter = [
       {'Name'  => 'vpc-id',       'Value' => vpc[:id]},
-      {'Name'  => 'tag:Nanobox',  'Value' => 'true'}
+      {'Name'  => 'tag:Microbox',  'Value' => 'true'}
     ]
-    
+
     # query the api
     res = manager.DescribeSecurityGroups('Filter' => filter)
-    
+
     # extract the collection
     groups = res['DescribeSecurityGroupsResponse']['securityGroupInfo']
-    
+
     return [] if groups.nil?
-    
+
     # groups might not be a collection, but a single item
     collection = begin
       if groups['item'].is_a? Array
@@ -25,7 +25,7 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
         [groups['item']]
       end
     end
-    
+
     # grab the groups and process them
     collection.each do |group|
       list << process(group)
@@ -33,18 +33,18 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
 
     list
   end
-  
+
   def show(vpc, name)
     list(vpc).each do |group|
       if group[:name] == name
         return group
       end
     end
-    
+
     # return nil if we can't find it
     nil
   end
-  
+
   def create_dmz(vpc)
     # short-circuit if this already exists
     existing = show(vpc, 'DMZ')
@@ -52,20 +52,20 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       logger.info "Security Group 'DMZ' already exists"
       return existing
     end
-    
+
     # create the security group
     logger.info "Creating the Security Group 'DMZ'"
     sg = create_group(vpc, 'DMZ')
-    
-    # extract the ID for convenience 
+
+    # extract the ID for convenience
     sg_id = sg['groupId']
-    
+
     # tag the security group with a name
     logger.info "Tagging Security Group"
     tag_group(vpc, sg_id, 'DMZ')
-    
+
     # create inbound rules
-    # 
+    #
     logger.info "Adding ingress rules to DMZ"
     # allow ssh
     add_rule sg_id, '6', 22, 22, '0.0.0.0/0'
@@ -73,10 +73,10 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
     add_rule sg_id, '17', 1194, 1194, '0.0.0.0/0'
     # allow ping
     add_rule sg_id, '1', -1, -1, '0.0.0.0/0'
-    
+
     show(vpc, 'DMZ')
   end
-  
+
   def create_mgz(vpc, dmzs, mgzs)
     # short-circuit if this already exists
     existing = show(vpc, 'MGZ')
@@ -84,20 +84,20 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       logger.info "Security Group 'DMZ' already exists"
       return existing
     end
-    
+
     # create the security group
     logger.info "Creating the Security Group 'DMZ'"
     sg = create_group(vpc, 'MGZ')
-    
-    # extract the ID for convenience 
+
+    # extract the ID for convenience
     sg_id = sg['groupId']
-    
+
     # tag the security group with a name
     logger.info "Tagging Security Group"
     tag_group(vpc, sg_id, 'MGZ')
-    
+
     # create inbound rules
-    # 
+    #
     logger.info "Adding ingress rules to MGZ"
     # allow anything from the dmz subnets
     dmzs.each do |dmz|
@@ -107,10 +107,10 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
     mgzs.each do |mgz|
       add_rule sg_id, '-1', -1, -1, mgz[:subnet]
     end
-    
+
     show(vpc, 'MGZ')
   end
-  
+
   def create_apz(vpc, dmzs, mgzs, apzs, name)
     # short-circuit if this already exists
     existing = show(vpc, name)
@@ -118,20 +118,20 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       logger.info "Security Group '#{name}' already exists"
       return existing
     end
-    
+
     # create the security group
     logger.info "Creating the Security Group '#{name}'"
     sg = create_group(vpc, name)
-    
-    # extract the ID for convenience 
+
+    # extract the ID for convenience
     sg_id = sg['groupId']
-    
+
     # tag the security group with a name
     logger.info "Tagging Security Group"
     tag_group(vpc, sg_id, name)
-    
+
     # create inbound rules
-    # 
+    #
     logger.info "Adding ingress rules to '#{name}'"
     # allow anything from the dmz subnets
     dmzs.each do |dmz|
@@ -149,34 +149,34 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
     add_rule sg_id, '6', 80, 80, '0.0.0.0/0'
     # allow https from anywhere
     add_rule sg_id, '6', 443, 443, '0.0.0.0/0'
-    
+
     show(vpc, name)
   end
-  
+
   protected
-  
+
   def create_group(vpc, name)
     res = manager.CreateSecurityGroup(
-      'GroupDescription'  => "Nanobox Unity #{vpc[:name]} Zone #{name}",
-      'GroupName'         => "Nanobox-Unity-#{vpc[:name]}-#{name}",
+      'GroupDescription'  => "Microbox Unity #{vpc[:name]} Zone #{name}",
+      'GroupName'         => "Microbox-Unity-#{vpc[:name]}-#{name}",
       'VpcId'             => vpc[:id]
     )
-    
+
     res['CreateSecurityGroupResponse']
   end
-  
+
   def tag_group(vpc, group_id, name)
     # tag the acl
     res = manager.CreateTags(
       'ResourceId'  => group_id,
       'Tag' => [
         {
-          'Key' => 'Nanobox',
+          'Key' => 'Microbox',
           'Value' => 'true'
         },
         {
           'Key' => 'Name',
-          'Value' => "Nanobox-Unity-#{vpc[:name]}-#{name}"
+          'Value' => "Microbox-Unity-#{vpc[:name]}-#{name}"
         },
         {
           'Key' => 'FirewallName',
@@ -185,7 +185,7 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       ]
     )
   end
-  
+
   def add_rule(sg_id, protocol, from, to, network)
     res = manager.AuthorizeSecurityGroupIngress(
       'GroupId'     => sg_id,
@@ -194,10 +194,10 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       'FromPort'    => from,
       'ToPort'      => to
     )
-    
+
     res['return']
   end
-  
+
   def process(data)
     {
       id: data['groupId'],
@@ -206,7 +206,7 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       egress: (process_rules(data['ipPermissionsEgress']) rescue 'na')
     }
   end
-  
+
   def process_rules(entries)
     collection = begin
       if entries['item'].is_a? Array
@@ -215,12 +215,12 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
         [entries['item']]
       end
     end
-    
+
     collection.map do |entry|
       process_rule(entry)
     end
   end
-  
+
   def process_rule(data)
     {
       protocol: data['ipProtocol'],
@@ -229,5 +229,5 @@ class Unity::EC2::SecurityGroup < Unity::EC2::Base
       cidr:     (data['ipRanges']['item']['cidrIp'] rescue 'na')
     }
   end
-  
+
 end

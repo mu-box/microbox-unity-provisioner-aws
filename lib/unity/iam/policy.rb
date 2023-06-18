@@ -1,13 +1,13 @@
 require 'json'
 
 class Unity::IAM::Policy < Unity::IAM::Base
-  
+
   def list(vpc)
     list = []
 
     # query the api
     res = manager.ListPolicies(
-      'PathPrefix'  => "/Nanobox/Unity/#{vpc[:name]}/"
+      'PathPrefix'  => "/microbox/Unity/#{vpc[:name]}/"
     )
 
     # extract the instance collection
@@ -32,18 +32,18 @@ class Unity::IAM::Policy < Unity::IAM::Base
 
     list
   end
-  
+
   def show(vpc, subnet)
     list(vpc).each do |policy|
       if policy[:name] == subnet[:name]
         return policy
       end
     end
-    
+
     # return nil if we can't find it
     nil
   end
-  
+
   def create(vpc, subnet)
     # short-circuit if this already exists
     existing = show(vpc, subnet)
@@ -51,28 +51,28 @@ class Unity::IAM::Policy < Unity::IAM::Base
       logger.info "IAM Policy '#{subnet[:name]}' already exists"
       return existing
     end
-    
+
     # let's create the policy
     logger.info "Creating IAM Policy '#{subnet[:name]}'"
     res = manager.CreatePolicy(
-      'Description'     => 'Auto-generated policy by Nanobox Unity.',
-      'Path'            => "/Nanobox/Unity/#{vpc[:name]}/",
+      'Description'     => 'Auto-generated policy by Microbox Unity.',
+      'Path'            => "/Microbox/Unity/#{vpc[:name]}/",
       'PolicyDocument'  => JSON.generate(policy_template(subnet[:id])),
-      'PolicyName'      => "Nanobox-Unity-#{vpc[:name]}-#{subnet[:name]}"
+      'PolicyName'      => "Microbox-Unity-#{vpc[:name]}-#{subnet[:name]}"
     )
-    
+
     process(res['CreatePolicyResponse']['CreatePolicyResult']['Policy'])
   end
-  
+
   protected
-  
+
   def process(data)
     {
       id:   data['PolicyId'],
       name: data['PolicyName'].match(/(APZ-.+)$/)[1]
     }
   end
-  
+
   def policy_template(subnet_id)
     {
       "Version" => "2012-10-17",
@@ -121,5 +121,5 @@ class Unity::IAM::Policy < Unity::IAM::Base
       ]
     }
   end
-  
+
 end

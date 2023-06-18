@@ -1,2 +1,2 @@
-# nanobox-unity-provisioner-aws
+# microbox-unity-provisioner-aws
 Scripts to provision aws platform for a unity installation
